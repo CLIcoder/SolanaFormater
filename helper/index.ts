@@ -1,99 +1,64 @@
-import fs from 'fs';
-import path from 'path';
-
-import cliProgress from 'cli-progress';
-import got from 'got';
 import { clusterApiUrl, Connection, PublicKey } from '@solana/web3.js';
+import { decodeMetadata } from './metaplex/metadata'
+import axios from 'axios';
 
-import { Data, Metadata } from './metaplex/classes';
-import { METADATA_PROGRAM_ID } from './metaplex/constants';
-import { decodeMetadata } from './metaplex/metadata';
+const METADATA_PROGRAM_PK = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+const conn = new Connection(clusterApiUrl('mainnet-beta'));
 
-const METADATA_PROGRAM_PK = new PublicKey(METADATA_PROGRAM_ID);
-const OUTPUT_DIR = './results';
 
-interface MintData {
-  imageUri?: string;
-  mintWalletAddress: string;
-  nftData: Data;
-  tokenMetadata: Metadata;
-  totalSupply: number;
-}
-
-async function retrieveMetadata(accountData) {
+const retrieveMetadata = async (accountData: any) => {
   const tokenMetadata = decodeMetadata(accountData);
-
+  const nftInfoResponse = await axios.get(tokenMetadata.data.uri);
+  //console.log('nftInfoResponse',nftInfoResponse.data);
   return {
+    nftData: nftInfoResponse.data,
     tokenMetadata,
   };
 }
 
-
-
-export const test = async  (mintWalletAddress : any)  => {
-
-
-
-  const conn = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+export const getMintData = async () => {
+  console.log('getMintData: start running.....')
   const response = await conn.getProgramAccounts(METADATA_PROGRAM_PK, {
     filters: [
       {
         memcmp: {
           offset: 360,
-          bytes: mintWalletAddress,
+          bytes: "bXB92hrdhaj6V3BP6bRq5b6qDzK5ALvsecGgUEWi4vK",
         },
       },
     ],
   });
 
-  const totalSupply = response.length;
-  console.log('Mint Wallet Address: ', mintWalletAddress);
-  console.log('Total Supply: ', totalSupply);
+  console.log('ttttttttttttttttttt',response)
 
-
-
-  const progressBar = new cliProgress.SingleBar(
-    {},
-    cliProgress.Presets.shades_classic
-  );
-
-  progressBar.start(totalSupply, 0);
-
-  if (!totalSupply) {
-    progressBar.stop();
-    return;
-  }
-
-  const mintTokenIds = [];
-  const mints: MintData[] = [];
-
-  for (const record of response) {
-    const {  tokenMetadata } = await retrieveMetadata(
-      record.account.data
+  const resultArr = [];
+  for (const elem of response) {
+    //console.log('check elem', elem.account);
+    const { nftData, tokenMetadata } = await retrieveMetadata(
+      elem.account.data
     );
 
-    const mintData = {
-      mintWalletAddress,
-      tokenMetadata,
-      totalSupply,
-    };
+    // GET PLANET INDEX
+    const nftName :any = nftData['name']
+    const planetIndex = nftName.replace('Planet #', ''); 
 
-    mintTokenIds.push(tokenMetadata.mint);
-
-    progressBar.increment();
+    resultArr.push({planetIndex, mintAddress : tokenMetadata.mint, planetImage: nftData['image'] })
   }
 
-  progressBar.stop();
+  console.log('resultArr', resultArr )
+  console.log('Calling p1planet', resultArr )
 
-  if (!fs.existsSync(OUTPUT_DIR)) {
-    fs.mkdirSync(OUTPUT_DIR);
-  }
-
-  fs.writeFileSync(
-    path.join(OUTPUT_DIR, `mint-token-ids:${mintWalletAddress}.json`),
-    JSON.stringify(mintTokenIds),
-    'utf-8'
-  );
-  return JSON.stringify(mintTokenIds)
-
-}
+  await axios
+    .post("https://be.solan.io/p1planet",
+      JSON.stringify({resultArr}),
+      {
+        headers: {
+          auth: "C4QNdfAj8KsVoZcUR99WYFcS4vomW7ctsDMIkKl",
+          "Content-Type": "application/json",
+        },
+      })
+    .then((response) => {
+      console.log('getMintData: succeessfully updated DB', response)
+      return;
+    });
+};

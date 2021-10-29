@@ -9,8 +9,8 @@ import { METADATA_PROGRAM_ID } from './constants';
 import { EDITION, METADATA_PREFIX, StringPublicKey } from './types';
 
 export const findProgramAddressPublicKey = async (
-  seeds,
-  programId
+  seeds:any,
+  programId:any
 ): Promise<PublicKey> => {
   const result = await PublicKey.findProgramAddress(seeds, programId);
   return result[0];

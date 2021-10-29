@@ -4,6 +4,6 @@ import controller from './posts';
 const router = express.Router();
 
 
-router.get('/mint/:id', controller.getMint);
+router.get('/mint', controller.getMint);
 
 export default router;
