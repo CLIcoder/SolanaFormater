@@ -2,6 +2,7 @@
 import http from "http";
 import express, { Express } from "express";
 import morgan from "morgan";
+import cors from 'cors'
 import routes from "./post/routes";
 
 const router: Express = express();
@@ -10,6 +11,7 @@ const router: Express = express();
 
 /** Logging */
 router.use(morgan("dev"));
+router.use(cors());
 /** Parse the request */
 router.use(express.urlencoded({ extended: false }));
 /** Takes care of JSON data */
